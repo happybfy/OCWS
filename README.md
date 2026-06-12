@@ -64,14 +64,14 @@ new → assigned → working → done → archived
 
 ## 实战验证
 
-OCWS 已在 6 个真实项目中运行，涵盖：
+OCWS 已在 60 个真实项目中运行，涵盖：
 
 - 网站部署（WordPress + OSS）
 - 内容站点开发（10+ 页面、多模板）
 - ERPNext 定制开发（自定义 App + 前后端 + Bug修复）
 - 批量运维操作（bench console 仓库转移）
 
-累计 15+ 个任务通过 OCWS 自动分发执行，未出现任务丢失或事实源不一致。
+累计 150+ 个任务通过 OCWS 自动分发执行，未出现任务丢失或事实源不一致。
 
 ## 文档导航
 
