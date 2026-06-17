@@ -83,7 +83,7 @@ OCWS 已在 60 个真实项目中运行，涵盖：
 | 文档 | 内容 |
 |------|------|
 | [SPEC.md](SPEC.md) | 完整规范：目录结构、角色、流程 |
-| [rules/](rules/) | 命名、任务流转、通知格式、项目结构等规则 |
+| [rules/](rules/) | 命名、任务流转、通知格式、验收规范、项目结构等规则 |
 | [templates/](templates/) | 项目、任务、通知、事件的标准模板 |
 | [lessons-learned.md](lessons-learned.md) | 实战经验与踩坑记录 |
 
