@@ -3,16 +3,17 @@
 > 用途：机器人间投递事件通知时使用。  
 > 要求：仅携带事件元数据，不复制任务正文；字段符合 `../rules/push-notification.md` 规范。
 
-# 事件通知：`EVENT-{event_type}-{task_id}`
+# 事件通知：`EVENT-{event_type}-{project_id}-{task_id}-{attempt_id}`
 
 ## 基本信息
 
-- event_id：`EVENT-{event_type}-{task_id}`
+- event_id：`EVENT-{event_type}-{project_id}-{task_id}-{attempt_id}`
 - event_type：`task.completed | task.failed | task.verified | task.returned | task.reassigned | task.blocked`
 - source_robot：`robot-{name}`
 - target_robot：`robot-{name}`
 - task_id：`TASK-{xxx}-{name}`
 - project_id：`PRJ-{xxx}-{name}`
+- attempt_id：`a1`
 - timestamp：`YYYY-MM-DDTHH:MM:SSZ`
 - status：`unread`
 
@@ -31,6 +32,8 @@
 
 ## 处理说明
 
+- 事件文件名必须含 `project_id` 与 `attempt_id`，避免跨项目同名任务冲突
 - 目标机器人心跳或实时扫描时处理此文件
 - 处理完成后移入 `cache/` 或删除（视机器人策略）
 - event_id 用于去重，同一 event_id 不重复处理
+- `task.verified` / `task.returned` 的后续动作：归档由 Planner 执行（已验证），退回由 Planner 走 `done → assigned`

@@ -8,10 +8,14 @@
 - 任务 ID：`TASK-xxx-name`
 - 所属项目：`PRJ-xxx-name`
 - 当前状态：`new | assigned | working | done | failed | archived`
+- 执行批次：`a1`（重分配/退回重交时递增）
+- 分配类型：`前端 | 后端 | 混合 | 文档`
 - 优先级：`P0 | P1 | P2 | P3`
 - 责任机器人：
 - 创建时间：`YYYY-MM-DDTHH:MM:SSZ`
 - 最近更新时间：`YYYY-MM-DDTHH:MM:SSZ`
+
+> 归档时必须补写 `closure_reason`：`verified | cancelled | terminated`。
 
 ## 依赖
 
@@ -71,17 +75,28 @@
 
 当任务处于不同状态时，这里应至少记录：
 
-- `assigned`：为什么分配给当前机器人
+- `assigned`：为什么分配给当前机器人、本批次的 `attempt_id`
 - `working`：当前进展和阻塞点
-- `done`：完成摘要和交付位置
+- `done`：完成摘要和交付位置（指向 `output/att-{attempt_id}/`）
 - `failed`：失败原因和建议下一步
+- `archived`：`closure_reason` + 归档人 + 归档时间
+
+> `task.md` 只记录**当前有效结论**。历史批次的结论、产物与证据不得因重试或退回而被覆盖或改写。
+
+## 执行批次记录
+
+每次实际执行追加一行，不得删改历史行：
+
+| attempt_id | 执行者 | 开始 | 结束 | 结果 | 证据路径 |
+|------------|--------|------|------|------|---------|
+| a1 | `robot-name` | | | done/failed | `logs/att-a1/` |
 
 ## 关联路径
 
 - 输入目录：`input/`
-- 中间产物目录：`workspace/`
-- 输出目录：`output/`
-- 过程日志目录：`logs/`
+- 中间产物目录：`workspace/att-{attempt_id}/`
+- 输出目录：`output/att-{attempt_id}/`
+- 过程日志目录：`logs/att-{attempt_id}/`
 
 ## 变更记录
 

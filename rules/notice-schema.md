@@ -26,14 +26,16 @@
 通知文件名必须符合以下格式：
 
 ```text
-NOTICE-<任务目录名>.md
+NOTICE-<project_id>-<task_id>-<attempt_id>.md
 ```
 
 示例：
 
 ```text
-NOTICE-TASK-002-implement.md
+NOTICE-PRJ-001-oss-cleanup-TASK-002-implement-a1.md
 ```
+
+要求：通知必须能唯一定位「哪个项目的哪个任务的第几个执行批次」。`task_id` 仅项目内唯一，禁止省略 `project_id` 或 `attempt_id`。
 
 ## 建议目录位置
 
@@ -49,11 +51,14 @@ NOTICE-TASK-002-implement.md
 通知文件必须至少包含以下字段：
 
 - `notice_id`
+- `notice_type`
 - `task_id`
 - `project_id`
+- `attempt_id`
 - `project_path`
 - `task_path`
 - `assignee_robot`
+- `sender_robot`
 - `created_at`
 - `priority`
 - `status`
@@ -63,11 +68,33 @@ NOTICE-TASK-002-implement.md
 
 ### `notice_id`
 
-通知自身的唯一标识。第一版建议直接使用通知文件名去掉扩展名后的值，例如：
+通知自身的唯一标识。直接使用通知文件名去掉扩展名后的值，例如：
 
 ```text
-NOTICE-TASK-002-implement
+NOTICE-PRJ-001-oss-cleanup-TASK-002-implement-a1
 ```
+
+### `notice_type`
+
+通知的用途类型。取值：
+
+| 值 | 含义 | 典型接收方 |
+|----|------|-----------|
+| `dispatch` | 派工通知（分派任务给执行者） | Executor / Assistant-Executor |
+| `verify_result` | 验收结论通知 | Planner |
+| `return` | 验收退回通知 | Executor |
+| `alert` | 告警通知（超时 / 异常 / 阻塞） | Planner / 人类 |
+| `takeover_request` | 接管申请 | Planner |
+
+要求：接收方必须能仅凭 `notice_type` 判断应执行什么动作。**收到通知不等于接手执行**——`verify_result`、`alert`、`takeover_request` 的接收方不是任务执行者。
+
+### `attempt_id`
+
+执行批次号，从 `a1` 递增。提交验收 / 退回 / 重分配时必须保留原批次号，重分配时递增。
+
+### `sender_robot`
+
+发出通知的机器人目录名。用于区分「谁发的」与「谁该执行」，避免把接收通知的计划者误当成任务执行者。
 
 ### `task_id`
 
@@ -146,6 +173,8 @@ robot-coder
 
 - 通知文件不使用 `new`，因为 `new` 状态下任务尚未分发
 - 通知文件通常也不使用 `archived`，归档后应转入项目归档流程
+- 「通知处理完成」不等于「任务完成」：`verify_result`、`alert` 处理完毕只代表该条通知已响应
+- 任务已归档、而历史通知仍停留在 `done` / `failed` 是**合法组合**，不得据此反复告警
 
 ### `result_path`
 
@@ -205,7 +234,7 @@ robot-coder
 
 - `task_id` 必须与 `task_path` 指向目录一致
 - `project_id` 必须与 `project_path` 指向目录一致
-- `assignee_robot` 必须与通知所在机器人目录一致
+- `assignee_robot` 必须与通知所在机器人目录一致（`notice_type = dispatch` 且状态为 `working` / `done` / `failed` 时）
 - `status` 必须与通知所在子目录语义一致
 
 例如：
@@ -214,6 +243,8 @@ robot-coder
 - 位于 `working/` 的通知状态应为 `working`
 - 位于 `done/` 的通知状态应为 `done`
 - 位于 `failed/` 的通知状态应为 `failed`
+
+关于 `assignee_robot` 的例外：**反馈类通知（`verify_result` / `alert` / `takeover_request` / `return`）投递到接收方 inbox 时不适用上述位置一致性规则**——它不代表接收方领取了任务。此时以 `task.md` 状态为准，接收方处理后移入 `cache/`。
 
 ## 禁止事项
 

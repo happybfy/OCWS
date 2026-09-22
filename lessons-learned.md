@@ -11,7 +11,7 @@
 
 共享文件系统 + 标准目录结构 + Markdown 文件，不需要 API、消息队列或数据库。
 
-- ✅ 机器人跨主机读写，共享存储原子 `mv` 操作保证任务领取互斥
+- ✅ 机器人跨主机读写，共享存储原子 `mv` 操作保证**同一机器人多进程**的领取互斥（不是任务只执行一次的保证）
 - ✅ 人类可直接 `ls` / `cat` 查看状态，无需额外工具
 - ✅ 零运维成本：不需要维护中间件、不需要处理连接/认证/序列化
 
@@ -27,13 +27,12 @@
 
 | 角色 | 职责 | 不越界 |
 |------|------|--------|
-| Planner | 读 inbox、拆任务、分发通知、重分配 failed | 不执行、不验收 |
+| Planner | 读 inbox、拆任务、定向派发通知、归档、重分配 failed/退回 | 不执行、不验收 |
 | Executor | 原子领取、执行、产出、回写 task.md | 不规划、不验收 |
-| Gatekeeper | 巡检 working/、验收 done/、决定归档/退回 | 不修改产出、不代执行 |
+| Gatekeeper | 巡检 working/、验收 done/、出具归档/退回结论 | 不修改产出、不代执行、不自行归档 |
 | Sponsor | 建项目、定任务、保障基础设施 | 不分发、不执行 |
 
 ### 1.4 轮询 + 事件触发双通道
-
 - 各机器人有 cron 轮询（如每 5 分钟），保底不丢任务
 - Sponsor 可通过 SSH + CLI 即时唤醒 Planner
 - 两条通道互补：轮询保证最终一致性，CLI 触发降低延迟
@@ -110,13 +109,44 @@ Sponsor 通知 Planner 时不需要复述任务细节。
 
 ---
 
+### 2.7 事实源会被“善意改写”（2026-09 复核新增）
+
+真实案例（PRJ-001-oss-cleanup / TASK-001-delete-objects）中，同一任务留下三份互相矛盾的记录：
+
+| 证据 | 内容 |
+|------|------|
+| `output/delete-output.txt` | Removed 3987 objects（确实执行了） |
+| `output/verify-result.txt` | Object Number is: 0 |
+| `logs/execution.log` + `task.md` | 检查到 0 objects，**无需实际删除** |
+| `logs/delete-output.log` | `/usr/local/bin/ossutil: No such file` |
+
+即：执行确实发生，第二次核对时桶已空，于是事实源 `task.md` 的结论被改写为「无需执行」，历史批次证据被覆盖。
+
+**教训：**
+- 流程证据（通知移到 done/）**不能**证明业务结果；判断要以原始输出为准
+- `task.md` 只记当前有效结论，不得因重试/复核反推重写历史
+- 产物与日志按 `attempt_id` 分目录存放；重试不覆盖旧批次
+- 详细核对顺序与冲突处理见 `rules/authorization-boundary.md`
+
+### 2.8 通知命名遗漏项目维度（2026-09 修订）
+
+原 `NOTICE-<任务目录名>.md` 不含 `project_id`，而 `task_id` 仅项目内唯一；不同项目的同名任务落到同一机器人目录时必顶撞。已修订为：
+
+```text
+NOTICE-<project_id>-<task_id>-<attempt_id>.md
+```
+
+### 2.9 职责冲突要选一种，不要两个都写（2026-09 修订）
+
+原文档在同一个文件里既写「门禁者验收通过 → task.md → archived」，又写「门禁者不自行归档任务」；`verification-rules.md` 又说归档由计划者执行。
+
+**教训：**正常流程中的职责冲突比异常更危险——它会让机器人每次执行都在猜。现已统一：**门禁者只出结论 + 写验收报告，计划者负责归档并写 `closure_reason`**。
+
 ## 三、优化方向
 
-### 3.1 通知标准化
+### 3.1 通知标准化（已部分完成）
 
-当前有两种通知格式。建议统一：
-- 任务级通知：`NOTICE-TASK-{编号}-{短名}.md`
-- 项目级通知：`NOTICE-PRJ-{编号}-{意图}.md`
+已统一任务级通知命名：`NOTICE-{project_id}-{task_id}-{attempt_id}.md`（含项目维度与执行批次）。项目级指令仍可沿用 `NOTICE-PRJ-{编号}-{意图}.md`。
 
 ### 3.2 Sponsor 唤醒自动化
 

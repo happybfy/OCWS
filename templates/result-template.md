@@ -7,9 +7,12 @@
 
 - task_id：`TASK-xxx-name`
 - project_id：`PRJ-xxx-name`
+- attempt_id：`a1`
 - completed_by：`robot-name`
 - completed_at：`YYYY-MM-DDTHH:MM:SSZ`
 - final_status：`done | failed`
+
+> 结果描述必须可追溯到实际输出物，不能只写「已完成」。重试/退回重交时必须写入新批次目录，不得覆盖上一批次的结果。
 
 ## 完成摘要
 
@@ -57,5 +60,14 @@
 ## 关联路径
 
 - 任务目录：`10-projects/PRJ-xxx-name/tasks/TASK-xxx-name`
-- 输出目录：`10-projects/PRJ-xxx-name/tasks/TASK-xxx-name/output`
-- 日志目录：`10-projects/PRJ-xxx-name/tasks/TASK-xxx-name/logs`
+- 输出目录：`10-projects/PRJ-xxx-name/tasks/TASK-xxx-name/output/att-a{N}`
+- 日志目录：`10-projects/PRJ-xxx-name/tasks/TASK-xxx-name/logs/att-a{N}`
+
+## 高影响操作声明（如适用）
+
+若本批次包含不可逆或超出任务目录范围的操作，必须填写：
+
+- 操作清单：
+- 影响范围：
+- 可否回滚 / 回滚方式：
+- 授权依据：

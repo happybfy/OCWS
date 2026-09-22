@@ -98,17 +98,20 @@
 
 ## 通知文件示例
 
-在 `20-robots/robot-coder/inbox/NOTICE-TASK-002-deploy-frontend.md`：
+在 `20-robots/robot-coder/inbox/NOTICE-PRJ-001-hello-website-TASK-002-deploy-frontend-a1.md`：
 
 ```markdown
-# 通知：NOTICE-TASK-002-deploy-frontend
+# 通知：NOTICE-PRJ-001-hello-website-TASK-002-deploy-frontend-a1
 
 ## 基本信息
 
-- notice_id：`NOTICE-TASK-002-deploy-frontend`
+- notice_id：`NOTICE-PRJ-001-hello-website-TASK-002-deploy-frontend-a1`
+- notice_type：`dispatch`
 - task_id：`TASK-002-deploy-frontend`
 - project_id：`PRJ-001-hello-website`
+- attempt_id：`a1`
 - assignee_robot：`robot-coder`
+- sender_robot：`robot-planner`
 - priority：`P1`
 - status：`assigned`
 

@@ -27,8 +27,9 @@
 
 - ❌ **不分发**：拆任务、生成 NOTICE、分配执行者 = Planner 的职责。
 - ❌ **不执行**：领取通知、动手产出 = Executor 的职责。
-- ❌ **不验收**：验收 done/、决定归档/退回 = Gatekeeper 的职责。
+- ❌ **不验收**：验收 done/、出具归档/退回**结论** = Gatekeeper 的职责；归档执行 = Planner 的职责。
 - ❌ 不绕过 OCWS 文档直接口头指挥细节（教训：lessons-learned §2.5「一句来活了足够」）。
+- ❌ 高影响 / 不可逆操作的授权，必须显式给出，不能靠默认放行（`rules/authorization-boundary.md`）。
 
 ## Workflow · 标准动作
 
@@ -53,7 +54,7 @@
 |------|------|------|
 | Planner | 下游 | 我投项目级通知 + 唤醒；Planner 拆解分发并向我汇总进展 |
 | Executor / Assistant-Executor | 间接 | 经 Planner 分配执行，我一般不直接指挥 |
-| Gatekeeper | 间接 | 验收结论经 Planner 汇总给我；验收事故需通知我（verification-rules 红线） |
+| Gatekeeper | 间接 | 验收结论经 Planner 汇总给我；验收事故需通知我（verification-rules 红线）——**归档由 Planner 执行** |
 | 人类 | 上游 | 我代表人类发起意图；关键事件（阻塞/里程碑/事故）经 Planner 推送 TG 上报人类 |
 
 ## Rules I Follow · 我遵守的规则

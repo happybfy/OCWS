@@ -116,8 +116,8 @@
 
 | 结果 | 含义 | 后续动作 |
 |------|------|---------|
-| ✅ 通过 | 全部验收标准满足 | task.md 状态 → `archived`，验收报告写入 `logs/`，通知计划者 |
-| ❌ 退回 | 存在未满足的验收标准 | task.md 状态保持 `done`，验收报告列出问题，通知计划者决定下一步 |
+| ✅ 通过 | 全部验收标准满足 | 验收报告写入 `logs/`，投递 `EVENT-task.verified` → Planner；**归档由 Planner 执行**（task.md → `archived`，`closure_reason=verified`） |
+| ❌ 退回 | 存在未满足的验收标准 | task.md 状态保持 `done`，验收报告列出问题，投递 `EVENT-task.returned` → 执行者；由 Planner 走 `done → assigned` 重分配并递增 `attempt_id` |
 | ⚠️ 有条件通过 | 存在不影响核心功能的小问题 | 记录问题，通知计划者决定是否先归档再追加修正任务 |
 
 ### 退回时必须包含
@@ -141,6 +141,7 @@
 | 3 | **无证据验收** | 验收结论未附带任何可验证证据（截图/日志） |
 | 4 | **越权执行** | 门禁者自行修改产出物后放行（只能退回，不能修） |
 | 5 | **跳过验收** | 未执行验收就将任务标记为 `archived` |
+| 6 | **自行归档** | 门禁者自行将 `task.md` 改为 `archived` 或移动项目 `archive/`——归档只能由计划者依结论执行 |
 
 ### 室内验收的定义
 
@@ -209,16 +210,17 @@
 
 ## 与已有规范的衔接
 
-- 本规范是对 `task-lifecycle.md` 中任务状态流转规则的补充——明确 `done → archived` 这一环节的验收操作标准
+- 本规范是对 `task-lifecycle.md` 中任务状态流转规则的补充——明确 `done → archived` 这一环节的**验收结论标准**
 - 验收报告必须写入 `task-lifecycle.md` 规定的任务 `logs/` 目录
-- 验收通过后的归档操作，由门禁者通知计划者执行，遵循 `task-lifecycle.md` 的 `done → archived` 流转规则
-- 退回后的重分配，遵循 `task-lifecycle.md` 的 `failed → assigned` 流转规则，由计划者处理
+- **归档不由门禁者执行**：门禁者只出结论并投递 `EVENT-task.verified`，`done → archived` 由计划者执行并写 `closure_reason`（见 `task-lifecycle.md`「归档责任」）
+- 退回后的重分配：走 `done → assigned`（**不是** `failed`），由计划者处理并递增 `attempt_id`
+- 证据冲突、高影响操作的执行前确认，见 `rules/authorization-boundary.md`
 
 ---
 
 ## 版本说明
 
 - 当前版本：`v1`
-- 生效日期：2026-06-17
+- 生效日期：2026-06-17（v1.1 修订：2026-09-22）
 - 生效范围：门禁者（小智）的所有验收操作
 - 注意事项：**此前发生的「室内验收」事件（TASK-008）视为本规范生效前的历史问题，不作为追责依据；自本规范生效之日起，所有验收操作必须遵守本规范。**

@@ -91,24 +91,35 @@ TASK-review/
 
 ## 通知文件命名
 
-通知文件必须使用以下格式：
+任务通知文件必须使用以下格式：
 
 ```text
-NOTICE-<任务目录名>.md
+NOTICE-<project_id>-<task_id>-<attempt_id>.md
 ```
 
 示例：
 
 ```text
-NOTICE-TASK-002-implement.md
-NOTICE-TASK-015-review.md
+NOTICE-PRJ-001-oss-cleanup-TASK-002-implement-a1.md
+NOTICE-PRJ-015-content-pipeline-TASK-015-review-a2.md
 ```
 
 要求如下：
 
-- 通知文件名必须与目标任务目录名一一对应
+- `project_id` 与 `task_id` 缺一不可：`task_id` 仅项目内唯一，不同项目的同名任务落到同一机器人目录时必须能够区分
+- `attempt_id` 为执行批次号（`a1`、`a2`…），由计划者分配；重分配、退回重交、接管都必须递增
 - 通知文件必须保留 `.md` 扩展名
-- 同一个机器人同一时刻不应存在多个指向同一任务的有效通知文件
+- 同一个机器人同一时刻，同一任务只应存在一个**有效**通知文件（对应当前有效授权）
+- 历史批次的通知文件不得删除或覆盖，归档到该机器人的 `done/`、`failed/` 或 `cache/` 中保留
+
+事件通知文件的命名见 `rules/push-notification.md`；其唯一性键同为 `project_id + task_id`。
+
+禁止示例：
+
+```text
+NOTICE-TASK-002-implement.md          （缺少 project_id，跨项目冲突）
+NOTICE-TASK-002-implement-final.md    （用后缀表达批次，无法机器解析）
+```
 
 ## 机器人目录命名
 
@@ -152,7 +163,8 @@ robot-reviewer/
 编号规则采用“局部唯一”策略：
 
 - 项目编号在 `10-projects/` 范围内唯一
-- 任务编号在单个项目范围内唯一
+- 任务编号在单个项目范围内唯一（因此任务标识必须写成 `project_id + task_id` 才能全局定位）
+- 通知文件在机器人目录内唯一，唯一性键为 `project_id + task_id + attempt_id`
 - 机器人不使用数字编号，使用稳定名称标识
 
 当前版本不强制要求编号连续，但要求：

@@ -59,25 +59,28 @@
 事件通知文件命名：
 
 ```text
-EVENT-<event_type>-<task_id>.md
+EVENT-<event_type>-<project_id>-<task_id>-<attempt_id>.md
 ```
 
 示例：
 
 ```text
-EVENT-task.completed-TASK-022-fix-brand-header.md
+EVENT-task.completed-PRJ-022-web-fix-TASK-022-fix-brand-header-a1.md
 ```
+
+必须含 `project_id` 与 `attempt_id`：`task_id` 仅项目内唯一，不同项目的同名任务落到同一机器人 `inbox/` 时必须能区分；`attempt_id` 用于把事件绑定到具体执行批次。
 
 ### 4.1 必填字段
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `event_id` | string | 事件唯一标识，格式 `EVENT-{type}-{task_id}` |
+| `event_id` | string | 事件唯一标识，格式 `EVENT-{type}-{project_id}-{task_id}-{attempt_id}` |
 | `event_type` | enum | 见 §3 事件类型 |
 | `source_robot` | string | 发起事件的机器人目录名 |
 | `target_robot` | string | 接收事件的机器人目录名 |
-| `task_id` | string | 关联任务 ID |
+| `task_id` | string | 关联任务 ID（仅项目内唯一） |
 | `project_id` | string | 关联项目 ID |
+| `attempt_id` | string | 关联执行批次（`a1`、`a2`…） |
 | `timestamp` | ISO 8601 | 事件发生时间 |
 | `status` | string | 始终为 `unread`（由目标机器人处理时更新） |
 
@@ -158,6 +161,8 @@ EVENT-task.completed-TASK-022-fix-brand-header.md
 - 心跳扫描到 done/ 中 notice 但未收到对应 EVENT → 视为异常，主动触发事件
 - 收到 EVENT 但 notice 状态不匹配 → 以 task.md 为准，记录不一致日志
 - 同事件多次投递 → 幂等处理（event_id 去重）
+- 事件被处理完（已响应）**不等于**任务已完成；任务已归档而历史通知仍为 `done` / `failed` 是合法组合，不得据此反复告警
+- 证据冲突、外部操作结果无法确认时，按 `rules/authorization-boundary.md` 处理，不得仅凭通知状态下结论
 
 ## 8. 人类通知分级
 

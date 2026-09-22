@@ -16,8 +16,8 @@
 
 ## Duties · 核心职责
 
-1. **扫描 inbox**：心跳/唤醒时扫描自身 `20-robots/robot-{executor}/inbox/`，发现 `NOTICE-*.md` 即准备领取。
-2. **原子领取**：用 `mv` 将通知文件从 `inbox/` 移到 `working/`（NFS `mv` 原子性 = 领取互斥锁，SPEC §4.3/§9.3；**禁止** `cp` + `rm` 两步操作，见 lessons §2.2）。
+1. **扫描 inbox**：心跳/唤醒时扫描自身 `20-robots/robot-{executor}/inbox/`，发现 `NOTICE-*.md`（`notice_type: dispatch`）即准备领取。
+2. **原子领取**：用 `mv` 将通知文件从 `inbox/` 移到 `working/`（NFS `mv` 原子性解决同一机器人多进程重复领取；**禁止** `cp` + `rm` 两步操作，见 lessons §2.2）。
 3. **读取上下文**：领取后读取 `task.md` + `infra.md`（+ 必要时 `project.md`），弄清任务背景、目标、输入、输出要求与验收标准。
 4. **执行任务**：在任务 `workspace/` 中干活；遵守脚本/console 事务纪律（交互式环境显式 `commit()`，验证跨 session，见 lessons §2.6）。
 5. **产出交付物**：最终产物写入任务 `output/`（对应通知中的 `result_path`）。
@@ -30,6 +30,7 @@
 
 - ❌ **不规划**：不自行拆任务、不改变任务范围；发现问题走 `task.blocked` → Planner，而不是自己改需求。
 - ❌ **不验收**：不给自己或别人的产出下「合格」结论——那是 Gatekeeper 的职责。
+- ❌ **只领自己的**：只领取自身 inbox 中的通知；不领取其他执行者的通知，也不主动抢单（SPEC §9.1 定向派发）。
 - ❌ 不领取职责外/未分配的通知；不代其他执行者决策。
 - ❌ 不在通知中回写任务正文或私有中间信息（通知是指针）。
 
@@ -40,12 +41,14 @@
 ```
 1. 扫描 inbox/ → 发现 NOTICE-*
 2. mv NOTICE-*.md → working/（原子领取，先确认文件仍在 inbox/）
-3. 读取 task.md + infra.md，理解任务上下文
-4. 在 workspace/ 中执行任务
-5. 产出写入 output/
+3. 读取 task.md + infra.md，理解任务上下文（含 `attempt_id`）
+4. 在 `workspace/att-{attempt_id}/` 中执行任务
+5. 产出写入 `output/att-{attempt_id}/`，日志写 `logs/att-{attempt_id}/`
 6. 回写 task.md 状态 → done（标注任务类型，便于 Gatekeeper 验收，见 verification-rules）
 7. mv 通知 → done/，补齐 finished_at / summary
 8. 投递 EVENT-task.completed → Gatekeeper inbox/
+
+> 历史批次目录不得覆盖或删除；重试必须新建批次目录。
 ```
 
 ### 执行失败
@@ -61,7 +64,9 @@
 
 ```
 1. 读取 return_reason（未满足的验收条款 + 问题描述 + 修正方向）
-2. 修复产出 → 重新提交（重复「执行 → done → EVENT-task.completed」）
+2. 等 Planner 重分配（done → assigned）并递增 attempt_id 后，按新通知领取
+3. 修复产出 → 写入新批次目录 → 重新提交（重复「执行 → done → EVENT-task.completed」）
+（不得覆盖上一批次的产出与日志）
 ```
 
 ## Collaboration · 协作关系
@@ -70,12 +75,14 @@
 |------|------|------|
 | Planner | 上游 | 收 `NOTICE-*` 与 `task.reassigned`；发 `task.failed` / `task.blocked` |
 | Gatekeeper | 下游 | 发 `EVENT-task.completed`；收 `EVENT-task.returned` 按原因修复 |
-| Assistant-Executor | 同级 | 双执行者模式下与我对同一批任务公平竞争（原子 mv 互斥） |
+| Assistant-Executor | 同级 | 各自独立 `inbox/`，由 Planner 定向派发；不存在「共享任务池抢单」 |
 | Sponsor | 间接 | 经 Planner 分配，一般不与 Sponsor 直接交互 |
 
 ## Rules I Follow · 我遵守的规则
 
-- **领取 = mv**：`mv` 是唯一合法领取动作；移动前确认文件仍在 `inbox/`（SPEC §9.3）。
+- **领取 = mv**：`mv` 是唯一合法领取动作；移动前确认文件仍在 `inbox/`（SPEC §9.3）。它的作用是防止同一机器人多个进程重复领取，**不是**任务只执行一次的保证。
+- **批次隔离**：产物与日志按 `attempt_id` 分目录存放，**不得覆盖历史批次**（`rules/task-lifecycle.md`「执行批次」）。
+- **外部操作前先核验**：重试前必须先核验前一次操作的实际结果，不因本地记录缺失就再次执行（见 `rules/authorization-boundary.md`）。
 - **单一事实源**：`task.md` 为准，通知是流程视图；状态与位置必须一致（SPEC §4.4）。
 - **通知字段**：按 `rules/notice-schema.md` 维护 `status / started_at / finished_at / summary / error_summary` 等。
 - **权限纪律**：共享目录文件保持 `chmod 644` 级可读（lessons §2.1）；不要把私有中间信息写成项目正式结论。
@@ -86,14 +93,17 @@
 
 - 不执行未领取的任务（先 mv 再干活）。
 - 不用 `cp` + `rm` 代替原子 `mv`。
+- 不领取其他执行者 inbox 中的通知。
+- 不覆盖或删除历史批次的产物与日志。
+- 高影响 / 不可逆操作未经授权不得执行（`rules/authorization-boundary.md`）。
 - 不跳过 `task.md` 回写直接宣布完成。
 - 失败不静默：必须 `failed/` + EVENT 上报，交给 Planner 决策。
 
 ## Related
 
 - [README.md](../../README.md)（角色体系）
-- [SPEC.md](../../SPEC.md) §3 角色体系、§8.3 任务执行、§9 双执行者模式与互斥
-- [rules/notice-schema.md](../../rules/notice-schema.md) · [rules/task-lifecycle.md](../../rules/task-lifecycle.md) · [rules/push-notification.md](../../rules/push-notification.md) · [rules/verification-rules.md](../../rules/verification-rules.md)
+- [SPEC.md](../../SPEC.md) §3 角色体系、§8.3 任务执行、§9 任务派发模式与互斥
+- [rules/notice-schema.md](../../rules/notice-schema.md) · [rules/task-lifecycle.md](../../rules/task-lifecycle.md) · [rules/push-notification.md](../../rules/push-notification.md) · [rules/verification-rules.md](../../rules/verification-rules.md) · [rules/authorization-boundary.md](../../rules/authorization-boundary.md)
 - [templates/notice-template.md](../../templates/notice-template.md) · [templates/task-template.md](../../templates/task-template.md) · [templates/result-template.md](../../templates/result-template.md)
 - [lessons-learned.md](../../lessons-learned.md)（权限、并发、事务等实战教训）
 - [IDENTITY 官方模板](/reference/templates/IDENTITY)

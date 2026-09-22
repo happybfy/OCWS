@@ -15,7 +15,7 @@
 6. [事件通知（Push）](#6-事件通知push)
 7. [命名规范](#7-命名规范)
 8. [协作流程](#8-协作流程)
-9. [双执行者模式](#9-双执行者模式)
+9. [任务派发模式](#9-任务派发模式)
 10. [Sponsor 唤醒 Planner](#10-sponsor-唤醒-planner)
 
 ---
@@ -33,7 +33,7 @@ OCWS 解决的核心问题：**多个 AI Agent（机器人）如何在同一套�
 | **目录即协议** | 约定好的目录结构就是 API，`mv` 就是操作 |
 | **单一事实源** | `project.md` / `task.md` 是唯一真相，通知只是指针 |
 | **通知是指针** | 通知文件只含元数据（ID/路径/状态/分配对象），不复制正文 |
-| **原子操作为锁** | NFS `mv` 原子操作保证任务领取互斥 |
+| **原子操作为锁** | NFS `mv` 原子操作保证**同一机器人多进程**的领取互斥（不是任务只执行一次的保证） |
 | **规则先于工具** | 行为规范写在文档中，不依赖定制化软件 |
 
 ### 1.3 最小依赖
@@ -54,7 +54,10 @@ workspace/
 │   │   ├── task-lifecycle.md
 │   │   ├── notice-schema.md
 │   │   ├── project-schema.md
-│   │   └── push-notification.md
+│   │   ├── push-notification.md
+│   │   ├── verification-rules.md
+│   │   ├── authorization-boundary.md
+│   │   └── content-registry.md
 │   └── templates/                 # 标准模板
 │       ├── project-template.md
 │       ├── task-template.md
@@ -109,7 +112,7 @@ workspace/
 | **Sponsor** | 项目创建、任务定义、基础设施保障 | `project.md`、`task.md`、`infra.md` | 不分发、不执行 |
 | **Planner** | 读 inbox、拆任务、生成通知、分发、重分配 failed | 通知文件、状态更新 | 不执行、不验收 |
 | **Executor** | 原子领取（mv）、执行、产出、回写 task.md | 交付物、执行报告 | 不规划、不验收 |
-| **Gatekeeper** | 巡检 working/、验收 done/、决定归档/退回 | 验收报告、EVENT 文件 | 不修改产出、不代执行 |
+| **Gatekeeper** | 巡检 working/、验收 done/、出具归档/退回**结论** | 验收报告、EVENT 文件 | 不修改产出、不代执行、不自行归档 |
 
 ### 3.2 角色交互流
 
@@ -126,10 +129,12 @@ Sponsor 创建项目/任务 → Planner 读取分发 → Executor 领取执行
 
 ```
 new → assigned → working → done → archived
-                      ↓         ↑
-                   failed ─────┘
-                      ↓
-              assigned（重分配）或 archived（终止）
+                     │          │
+                     │          └─→ assigned（验收退回，新建批次）
+                     ↓
+                  failed
+                     ├─→ assigned（补齐后重分配）
+                     └─→ archived（终止）
 ```
 
 ### 4.2 状态含义
@@ -141,7 +146,7 @@ new → assigned → working → done → archived
 | `working` | 执行中 | `working/` |
 | `done` | 已完成，待验收 | `done/` |
 | `failed` | 执行失败 | `failed/` |
-| `archived` | 已闭环 | 项目 `archive/` |
+| `archived` | 已闭环（须记 `closure_reason`：`verified` / `cancelled` / `terminated`） | 项目 `archive/` |
 
 ### 4.3 非法流转（禁止）
 
@@ -150,11 +155,20 @@ new → assigned → working → done → archived
 - `done → working`（回退）
 - `archived → working/assigned`（归档复活）
 
+合法但易混淆的两条：
+
+- `done → assigned`：**验收退回**（已交付但不合格），计划者重分配并开启新批次
+- `failed → assigned`：**执行失败后重分配**（补齐输入或修复阻塞）
+
+两者都必须保留前一批次的记录与产物。
+
 ### 4.4 单一事实源
 
 - 任务状态以 `task.md` 为准
 - 通知文件状态是流程视图，与 task.md 冲突时以 task.md 为准
-- 通知位置（inbox/working/done/failed）必须与文件内状态字段一致
+- 通知位置（inbox/working/done/failed）必须与文件内状态字段一致（反馈类通知除外，见 `rules/notice-schema.md`）
+- `task.md` 只记录当前有效结论，历史批次结论与证据不得被覆盖或改写
+- 证据冲突时的核对顺序见 `rules/authorization-boundary.md`
 
 ---
 
@@ -167,15 +181,20 @@ new → assigned → working → done → archived
 ### 5.2 命名
 
 ```
-NOTICE-TASK-{编号}-{短名}.md
+NOTICE-{project_id}-{task_id}-{attempt_id}.md
 ```
+
+如 `NOTICE-PRJ-001-demo-TASK-002-implement-a1.md`。必须含 `project_id`（`task_id` 仅项目内唯一）与 `attempt_id`（执行批次）。
 
 ### 5.3 必填字段
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
-| `notice_id` | 通知唯一标识 | `NOTICE-TASK-002-implement` |
-| `task_id` | 目标任务 ID | `TASK-002-implement` |
+| `notice_id` | 通知唯一标识 | `NOTICE-PRJ-001-demo-TASK-002-implement-a1` |
+| `notice_type` | dispatch / verify_result / return / alert / takeover_request | `dispatch` |
+| `task_id` | 目标任务 ID（仅项目内唯一） | `TASK-002-implement` |
+| `attempt_id` | 执行批次号，从 `a1` 递增 | `a1` |
+| `sender_robot` | 发出通知的机器人 ID | `robot-planner` |
 | `project_id` | 所属项目 ID | `PRJ-001-demo` |
 | `project_path` | 项目相对路径 | `10-projects/PRJ-001-demo` |
 | `task_path` | 任务相对路径 | `…/tasks/TASK-002-implement` |
@@ -213,8 +232,10 @@ NOTICE-TASK-{编号}-{短名}.md
 ### 6.3 格式
 
 ```
-EVENT-{event_type}-{task_id}.md
+EVENT-{event_type}-{project_id}-{task_id}-{attempt_id}.md
 ```
+
+如 `EVENT-task.completed-PRJ-001-demo-TASK-022-fix-brand-header-a1.md`。
 
 事件通知仅携带元数据，不复制任务正文。详见 `rules/push-notification.md`。
 
@@ -226,8 +247,8 @@ EVENT-{event_type}-{task_id}.md
 |------|------|------|-----------|
 | 项目 | `PRJ-{编号}-{短名}/` | `PRJ-001-pilot/` | 全局 |
 | 任务 | `TASK-{编号}-{短名}/` | `TASK-001-hello/` | 项目内 |
-| 通知 | `NOTICE-{任务目录名}.md` | `NOTICE-TASK-001-hello.md` | 机器人 inbox 内 |
-| 事件 | `EVENT-{类型}-{任务ID}.md` | `EVENT-task.completed-TASK-001.md` | 机器人 inbox 内 |
+| 通知 | `NOTICE-{project}-{task}-{attempt}.md` | `NOTICE-PRJ-001-pilot-TASK-001-hello-a1.md` | 机器人 inbox 内 |
+| 事件 | `EVENT-{类型}-{project}-{task}-{attempt}.md` | `EVENT-task.completed-PRJ-001-pilot-TASK-001-hello-a1.md` | 机器人 inbox 内 |
 | 机器人 | `robot-{短名}/` | `robot-coder/` | 全局 |
 
 原则：先唯一再可读、先稳定再美观、统一 ASCII。详见 `rules/naming.md`。
@@ -278,19 +299,27 @@ Executor（心跳或唤醒）:
 ```
 Gatekeeper（心跳或唤醒）:
 1. 扫描自身 inbox/ 中 EVENT-task.completed
-2. 检查 done/ 中产出物
-3. 对照 task.md 验收标准
-4. 通过：task.md → archived，移动通知至项目 archive/
-5. 不通过：移动通知回 Executor inbox/，投递 EVENT-task.returned
+2. 检查 done/ 中产出物，对照 task.md 验收标准（类型化标准见 verification-rules）
+3. 出具结论并写验收报告 → {task}/logs/verification-report-{日期}.md
+4. 通过：投递 EVENT-task.verified → Planner inbox/
+   （归档由 Planner 执行：task.md → archived，closure_reason=verified）
+5. 退回：投递 EVENT-task.returned（含 return_reason）→ Executor inbox/
+   （Planner 据此走 done → assigned，重分配并递增 attempt_id）
+
+Gatekeeper 不得自行把 task.md 标记为 archived，也不得移动项目 archive/。
 ```
 
 ---
 
-## 9. 双执行者模式
+## 9. 任务派发模式
 
-### 9.1 原子抢锁
+### 9.1 默认：定向派发
 
-两个 Executor 共享 `20-robots/` 下的独立 inbox/，通过 `mv` 原子操作争夺通知文件。
+Planner 选择目标 Executor，把通知投递到**该 Executor 自己的 inbox/**。
+
+- Executor 只领取自己 inbox 中的通知，**不领取**其他 Executor 的通知
+- Assistant-Executor 承接 Planner 独立分配给它的任务，不主动争抢另一执行者的通知
+- 第一版默认每个 Executor 同时只处理一个任务，后续按真实需要调整
 
 ### 9.2 分发策略
 
@@ -299,13 +328,23 @@ Gatekeeper（心跳或唤醒）:
 | **负载均衡** | 轮流分配（round-robin） |
 | **优先级路由** | P0/P1 优先分配给空闲者 |
 | **亲和性** | 同项目后续任务优先给第一个执行者 |
-| **故障接管** | 一方超时（如 >4h）→ Planner 重分配 |
+| **故障接管** | 一方超时（如 >4h）→ 告警 + 人工批准 → Planner 重分配（见 task-lifecycle「超时与接管」） |
 
-### 9.3 互斥保证
+### 9.3 原子 `mv` 的正确用途
+
+「原子抢锁」只解决**同一个机器人多个进程**同时领取同一份通知的问题：
 
 - NFS 上 `mv` 是原子操作，同一文件不会被两个 `mv` 同时成功
 - 通知文件移动到 `working/` 后即视为被领取
 - 任何机器人在移动前须检查文件仍存在于 inbox/
+
+它**不是**任务执行保证，也**不应该**被扩大解释为「多个机器人抢同一任务池」或「整个业务操作只执行一次」。
+
+### 9.4 执行授权
+
+- 同一任务同一时刻最多只有一个有效执行授权
+- 重分配、退回重交、接管都必须显式撤销旧授权，并递增 `attempt_id`
+- 同一任务的历史批次记录必须保留，不得覆盖
 
 ---
 
@@ -338,6 +377,20 @@ Sponsor:
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0 | 2026-05-23 | 初始版本，6 项目实战验证 |
+| v1.1 | 2026-09-22 | 消除规则歧义：默认定向派发、归档责任唯一化（Planner 归档）、新增 `done → assigned` 退回路径与 `closure_reason`、通知含 `project_id` + `attempt_id`、通知类型 `notice_type`、执行批次与超时接管、新增 `rules/authorization-boundary.md`（授权边界 + 证据分层） |
+
+## 相关规则
+
+| 文件 | 定义什么 |
+|------|---------|
+| `rules/naming.md` | 命名与唯一性键 |
+| `rules/task-lifecycle.md` | 状态流转、批次、接管、恢复、归档责任 |
+| `rules/notice-schema.md` | 通知字段与类型 |
+| `rules/push-notification.md` | 事件通知与人类通知分级 |
+| `rules/verification-rules.md` | 验收标准与红线 |
+| `rules/authorization-boundary.md` | 授权边界、高影响操作确认、证据分层 |
+| `rules/project-schema.md` | 项目文件与 `infra.md` |
+| `rules/content-registry.md` | 内容发布追踪 |
 
 ## 许可证
 
