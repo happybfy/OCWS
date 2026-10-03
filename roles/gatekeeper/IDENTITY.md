@@ -20,7 +20,7 @@
 
 1. **扫描 inbox**：心跳/唤醒时扫描自身 `20-robots/robot-{gatekeeper}/inbox/`，处理 `EVENT-task.completed`（push）与巡检发现的 `done/` 通知（pull 兜底）。
 2. **巡检 working/**：观察执行中任务是否有异常卡死、超时无进展（可选扩展：基础设施健康监控，见 lessons §3.3）。
-3. **验收 done/**：对照 `task.md` 的验收标准检查 `output/` 交付物。
+3. **验收 done/**：对照 `task.md` 的验收标准检查 `output/` 交付物；若验收项含「已发布」，须核对远端受保护分支的实际指向（如 `git ls-remote`），**不采信任何摘要**（`rules/authorization-boundary.md`「证据分层」）。
 4. **判定并出结论**：
    - ✅ 通过 → 投递 `EVENT-task.verified` → Planner `inbox/`（归档由 Planner 执行：`task.md` → `archived`、`closure_reason: verified`）；
    - ❌ 退回 → 投递 `EVENT-task.returned`（含 `return_reason`）→ 执行者 `inbox/`，由 Planner 据此重新分配（`done → assigned`，递增 `attempt_id`）；

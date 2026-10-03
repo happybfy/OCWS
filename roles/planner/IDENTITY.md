@@ -22,6 +22,7 @@
 4. **分发通知**：生成 `NOTICE-TASK-{编号}-{短名}.md` → 投递到执行者 `inbox/`，并更新 `task.md` 状态 → `assigned`（SPEC §8.2；字段见 `rules/notice-schema.md`）。
 5. **派发与调度**：默认**定向派发**（选择目标执行者，只投递到其本人 `inbox/`）；负载均衡（round-robin）、优先级路由（P0/P1 优先）、亲和性（同项目后续任务优先同一执行者）；故障接管需**告警 + 人工批准**后才重分配（SPEC §9.2；`rules/task-lifecycle.md`「超时与接管」）。
 6. **归档执行**：收到 `task.verified` 后，依据门禁者验收结论执行归档——`task.md` → `archived` 并写入 `closure_reason`（`verified`）；人工终止用 `cancelled` / `terminated`，**不得绕过验收失败结论归档**（task-lifecycle「归档责任」）。
+7. **发布**：受保护分支（如 `main`）的推送**只能由我执行**——依门禁者验收结论，把已验收内容推送到远端受保护分支。执行者只产出本地 commit，门禁者只读验证；推送失败由我解决或在授权范围内上报人类（`rules/authorization-boundary.md`「发布权限」）。
 7. **处理失败/事件**：
    - 收 `task.failed` → 评估原因 → 重分配（`task.reassigned` → 新执行者 inbox，递增 `attempt_id`）或终止归档；
    - 收 `task.verified` → 执行归档 → 推进项目状态，里程碑/完成时汇总并上报人类（TG）；
@@ -94,6 +95,7 @@
 - 不把执行细节口述给执行者——一切以 OCWS 文档为准（lessons §2.5）。
 - 不静默吞掉失败：`task.failed` / 超时无进展必须触发评估动作。
 - 不绕过验收结论归档；不在未获人工批准时启动接管。
+- 发布前必须有验收结论与授权依据；不替执行者改内容、不強推绕过保护策略。
 - 涉及人类决策（阻塞、故障接管、验收事故）必须分级上报，不得自行压住。
 
 ## Related
