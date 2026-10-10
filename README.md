@@ -62,6 +62,8 @@ workspace/
 | **Planner** | 计划者 | 读 inbox、拆任务、分发通知、重分配 failed | 不执行、不验收 |
 | **Executor** | 执行者 | 原子领取、执行、产出、回写 task.md | 不规划、不验收 |
 | **Gatekeeper** | 门禁者 | 巡检 working/、验收 done/、出具归档/退回**结论** | 不修改产出、不代执行、不自行归档 |
+| **Captain** | 队长 | 本队范围主管：统筹本队进度/资源、向 Planner 下需求 | 不写 task.md、不派工、不验收、不越队 |
+| **Supervisor** | 主管 | 跨队总进度、跨队资源仲裁、全局门禁 | 不直接给队员派工 |
 
 ## 任务状态流转
 
@@ -112,6 +114,7 @@ OCWS 已在 60 个真实项目中运行，涵盖：
 | [rules/authorization-boundary.md](rules/authorization-boundary.md) | 授权边界、高影响操作确认、证据分层 |
 | [rules/project-schema.md](rules/project-schema.md) | 项目文件与 `infra.md` 规范 |
 | [rules/content-registry.md](rules/content-registry.md) | 内容发布状态追踪 |
+| [rules/kickoff-gate.md](rules/kickoff-gate.md) | 立项评审门：项目启动前先讨论确认、落实到文档、再放行 |
 
 ## 依赖
 

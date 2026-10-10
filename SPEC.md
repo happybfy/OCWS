@@ -113,13 +113,19 @@ workspace/
 | **Planner** | 读 inbox、拆任务、生成通知、分发、重分配 failed | 通知文件、状态更新 | 不执行、不验收 |
 | **Executor** | 原子领取（mv）、执行、产出、回写 task.md | 交付物、执行报告 | 不规划、不验收 |
 | **Gatekeeper** | 巡检 working/、验收 done/、出具归档/退回**结论** | 验收报告、EVENT 文件 | 不修改产出、不代执行、不自行归档 |
+| **Captain** | 本队范围主管：统筹本队项目/任务进度、本队资源边界内仲裁、向 Planner 下需求 | 本队汇报 `REPORT-TEAM-*`、需求 `REQ-TEAM-*` | 不写 task.md、不派工、不验收、不越本队边界 |
+| **Supervisor** | 跨队总进度、跨队资源仲裁、全局门禁（G0–G4） | 跨队汇报、全局门禁结论 | 不直接给队员派工 |
+
+> **Captain（队长）** 是**本队范围内的 Supervisor**（职责同构、范围限本队）；**Supervisor** 是全局编排层。二者都**不写 `task.md`**（事实源唯一写者为 Planner），通过向 Planner 下 `REQ-TEAM-*` 施加意志。多小队部署时，人类按队与 Captain 沟通以避免跨队上下文混淆；单队运行时可直接找 Supervisor。
 
 ### 3.2 角色交互流
 
 ```
 Sponsor 创建项目/任务 → Planner 读取分发 → Executor 领取执行 
-    → Gatekeeper 验收 → Planner 汇总 → Sponsor 确认
+    → Gatekeeper 验收 → Planner 汇总 → Captain/Supervisor 统筹 → Sponsor 确认
 ```
+
+> 新增 **Captain / Supervisor** 为**编排层**（在 Planner 之上）；对现有 4 角色零改动，仅增加「本队/跨队」的统筹与对外接口。
 
 ---
 
@@ -378,6 +384,7 @@ Sponsor:
 |------|------|------|
 | v1.0 | 2026-05-23 | 初始版本，6 项目实战验证 |
 | v1.1 | 2026-09-22 | 消除规则歧义：默认定向派发、归档责任唯一化（Planner 归档）、新增 `done → assigned` 退回路径与 `closure_reason`、通知含 `project_id` + `attempt_id`、通知类型 `notice_type`、执行批次与超时接管、新增 `rules/authorization-boundary.md`（授权边界 + 证据分层） |
+| v1.2 | 2026-10-10 | 新增**编排层**：**Captain（队长，本队范围主管）/ Supervisor（主管，跨队）** 角色（`SPEC.md` §3.1）与授权边界（`authorization-boundary.md` §8）；多小队人类通知路由（`push-notification.md` §8.1）；新增**立项评审门** `rules/kickoff-gate.md`；新增 `roles/captain/IDENTITY.md` |
 
 ## 相关规则
 
@@ -391,6 +398,7 @@ Sponsor:
 | `rules/authorization-boundary.md` | 授权边界、高影响操作确认、证据分层 |
 | `rules/project-schema.md` | 项目文件与 `infra.md` |
 | `rules/content-registry.md` | 内容发布追踪 |
+| `rules/kickoff-gate.md` | 立项评审门：启动前讨论确认 + 落文档 + 放行 |
 
 ## 许可证
 

@@ -173,6 +173,16 @@ EVENT-task.completed-PRJ-022-web-fix-TASK-022-fix-brand-header-a1.md
 | 🟢 常规 | 任务级进展 | 心跳汇总报告 | "X 个任务已验收" |
 | ⚪ 静默 | 纯流程 | 不通知 | 单任务 assigned → working |
 
+### 8.1 多小队路由（Captain / Supervisor）
+
+多小队并行部署时，人类通知**按队路由**，避免跨队上下文混淆：
+
+- **单队事件**（本队 `project.milestone` / `project.blocked` / `project.completed`）→ 由**本队 Captain（队长）**汇总后上报人类；
+- **跨队 / 全局事件**（跨队资源冲突、全局门禁）→ 由 **Supervisor（主管）** 汇总后上报人类；
+- 单队运行时（仅一队在跑）人类可直连 Supervisor，无跨队混淆。
+
+> 路由原则：人类按队与 Captain 沟通；跨队/全局找 Supervisor。详见 `rules/authorization-boundary.md` §8 与项目 `CAPTAIN-LAYER` 规范。
+
 ## 9. 目录约定
 
 ```
