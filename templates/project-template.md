@@ -7,7 +7,7 @@
 
 - 项目 ID：`PRJ-xxx-name`
 - 项目名称：
-- 当前状态：`planning | active | on-hold | done | archived`
+- 当前状态：`planning | active | on-hold | parked | done | archived`
 - 优先级：`P0 | P1 | P2 | P3`
 - 项目负责人：
 - 创建时间：`YYYY-MM-DDTHH:MM:SSZ`
