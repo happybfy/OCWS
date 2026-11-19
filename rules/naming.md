@@ -38,7 +38,7 @@ PRJ-<三位或更多数字编号>-<短名称>/
 
 ```text
 PRJ-001-demo/
-PRJ-002-order-assistant/
+<project>-order-assistant/
 PRJ-015-content-pipeline/
 ```
 

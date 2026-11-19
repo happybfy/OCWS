@@ -52,5 +52,5 @@
 ## 版本说明
 
 - 当前版本：`v1`（2026-11-19）
-- 依据：不舟 2026-11-19 复盘要求（一队一项目）
+- 依据：<sponsor> 2026-11-19 复盘要求（一队一项目）
 - 关联：`kickoff-gate.md`、`task-lifecycle.md`、`concurrency-idempotency.md`、`progress-patrol.md`

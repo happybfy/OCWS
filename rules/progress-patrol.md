@@ -64,5 +64,5 @@
 ## 版本说明
 
 - 当前版本：`v1`（2026-11-19）
-- 依据：不舟 2026-11-19 复盘要求（队长定期巡查、停滞升级）
+- 依据：<sponsor> 2026-11-19 复盘要求（队长定期巡查、停滞升级）
 - 关联：`task-lifecycle.md`、`authorization-boundary.md`、`concurrency-idempotency.md`、`project-lock.md`

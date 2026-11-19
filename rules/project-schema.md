@@ -29,7 +29,7 @@
 ## 服务器
 
 [server-dev]
-ip = 192.168.1.100
+ip = <host>
 user = admin
 password = <secret>
 role = 开发服务器
